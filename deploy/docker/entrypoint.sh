@@ -14,6 +14,11 @@ echo "  Python:  $(python3 --version 2>&1)"
 echo "  3proxy:  $(3proxy --version 2>&1 | head -1 || echo 'installed')"
 echo "  HAProxy: $(haproxy -v 2>&1 | head -1)"
 
+# ── Очистка stale PID-файлов от предыдущих запусков ──────────
+# В Docker каждый запуск — новое пространство процессов,
+# старые PID-файлы из тома невалидны
+rm -f /var/run/proxy-stack/*.pid 2>/dev/null || true
+
 # ── Фикс прав на Docker-тома ────────────────────────────────
 # Docker-тома создаются от root; нужно передать их пользователю proxy
 for dir in /var/log/proxy-stack /var/run/proxy-stack /opt/proxy-stack/3proxy; do
