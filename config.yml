@@ -1,0 +1,126 @@
+# ============================================================
+# 3Proxy + HAProxy Stack — Master Configuration
+# ============================================================
+
+general:
+  # Рабочая директория для runtime-файлов (pid, logs, configs)
+  work_dir: /opt/proxy-stack
+  log_dir: /var/log/proxy-stack
+  pid_dir: /var/run/proxy-stack
+  # Пользователь/группа для non-root запуска
+  run_user: proxy
+  run_group: proxy
+
+# ---------- Сеть ----------
+network:
+  # Привязка: 0.0.0.0 (IPv4), [::] (dual-stack), конкретный IP
+  bind_address: "0.0.0.0"
+  bind_address_v6: "[::]"
+  enable_ipv6: true
+
+# ---------- HAProxy (балансировщик) ----------
+haproxy:
+  binary: /usr/sbin/haproxy
+  config_path: "{{ work_dir }}/haproxy.cfg"
+  stats:
+    enabled: true
+    bind: "127.0.0.1:8404"
+    uri: /stats
+    auth: "admin:proxy_stats_secret"
+  # Входные порты (фронтенды)
+  frontends:
+    http:
+      bind_port: 3128
+      mode: tcp            # TCP = без TLS-терминации
+    socks:
+      bind_port: 1080
+      mode: tcp
+  # Параметры балансировки
+  balance:
+    algorithm: roundrobin   # roundrobin | leastconn | source
+    retries: 3
+    timeout_connect: 5s
+    timeout_client: 60s
+    timeout_server: 60s
+  # Health-check
+  health_check:
+    inter: 3s
+    fall: 3
+    rise: 2
+
+# ---------- 3Proxy (экземпляры) ----------
+three_proxy:
+  binary: /usr/local/bin/3proxy
+  instance_count: 3
+  # Диапазон портов: каждый экземпляр получит base_port + N
+  base_http_port: 13128      # 13128, 13129, 13130
+  base_socks_port: 11080     # 11080, 11081, 11082
+  # Аутентификация (опционально)
+  auth:
+    enabled: false
+    type: strong             # none | iponly | strong
+    users:
+      - { login: "user1", password: "change_me_1" }
+      - { login: "user2", password: "change_me_2" }
+  # DNS
+  dns:
+    nserver:
+      - "1.1.1.1"
+      - "8.8.8.8"
+      - "2606:4700:4700::1111"   # Cloudflare IPv6
+    nscache: 65536
+    nscache6: 65536
+  # Лимиты
+  limits:
+    maxconn: 500
+    timeout: 60
+    # Ограничение скорости (байт/сек, 0 = без ограничений)
+    bandlimin: 0
+    bandlimout: 0
+  # Логирование
+  logging:
+    enabled: true
+    format: "L%Y%m%d%H%M%S %p %E %C:%c %R:%r %O %I %T"
+    rotate: 7               # Дней хранения
+
+# ---------- Анти-детект ----------
+anti_detect:
+  # Ротация User-Agent
+  user_agent_rotation:
+    enabled: true
+    rotate_every: 60         # секунд
+    pool_file: ""            # Путь к файлу (пусто = встроенный пул)
+  # Манипуляция заголовками
+  header_manipulation:
+    enabled: true
+    strip_headers:
+      - "X-Forwarded-For"
+      - "X-Real-IP"
+      - "Via"
+      - "Forwarded"
+    add_headers: {}
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_second: 50
+    burst: 100
+    per_ip: true
+
+# ---------- Мониторинг ----------
+monitoring:
+  enabled: true
+  bind: "127.0.0.1"
+  port: 9100
+  # Prometheus-совместимые метрики
+  metrics_path: /metrics
+  health_path: /health
+  # Алерты
+  alerts:
+    # Webhook URL для алертов (Slack, Telegram, etc.)
+    webhook_url: ""
+    # Пороги
+    thresholds:
+      cpu_percent: 80
+      memory_percent: 85
+      error_rate_percent: 5
+      min_healthy_backends: 2
