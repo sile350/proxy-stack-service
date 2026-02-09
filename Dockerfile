@@ -73,8 +73,9 @@ COPY config.yml /opt/proxy-stack/
 WORKDIR /opt/proxy-stack
 
 # Создание непривилегированного пользователя (Ubuntu-style)
-RUN groupadd --system proxy \
-    && useradd --system --gid proxy --home-dir /opt/proxy-stack --shell /usr/sbin/nologin proxy \
+# Группа proxy уже существует в Ubuntu 24.04, поэтому создаём только если нет
+RUN getent group proxy >/dev/null || groupadd --system proxy \
+    && id -u proxy >/dev/null 2>&1 || useradd --system --gid proxy --home-dir /opt/proxy-stack --shell /usr/sbin/nologin --no-create-home proxy \
     && chown -R proxy:proxy /opt/proxy-stack /var/log/proxy-stack /var/run/proxy-stack
 
 # Порты: HTTP proxy, SOCKS proxy, monitoring, HAProxy stats

@@ -1,12 +1,13 @@
 # ============================================================
 # Docker Compose — 3Proxy + HAProxy Proxy Stack (Ubuntu 24.04)
 # ============================================================
-# Запуск: docker compose up -d
-# Статус: docker compose ps
-# Логи:   docker compose logs -f proxy-stack
-# Стоп:   docker compose down
-
-version: "3.8"
+# Запуск: sudo docker compose up -d --build
+# Статус: sudo docker compose ps
+# Логи:   sudo docker compose logs -f proxy-stack
+# Стоп:   sudo docker compose down
+#
+# Чтобы работать без sudo:
+#   sudo usermod -aG docker $USER && newgrp docker
 
 services:
   proxy-stack:
