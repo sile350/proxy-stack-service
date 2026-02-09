@@ -109,7 +109,9 @@ anti_detect:
 # ---------- Мониторинг ----------
 monitoring:
   enabled: true
-  bind: "127.0.0.1"
+  # 0.0.0.0 — необходимо для Docker (порт проброшен только на 127.0.0.1 хоста)
+  # Для bare metal можно поставить 127.0.0.1
+  bind: "0.0.0.0"
   port: 9100
   # Prometheus-совместимые метрики
   metrics_path: /metrics
