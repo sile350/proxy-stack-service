@@ -39,8 +39,6 @@ global
     # Производительность
     nbthread 4
     spread-checks 5
-    # Не завершать TLS — работаем в чистом TCP
-    tune.ssl.default-dh-param 0
 
 defaults
     mode tcp

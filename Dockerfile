@@ -34,13 +34,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
-# Установка HAProxy, Python 3, утилит
+# Установка HAProxy, Python 3, gosu, утилит
 RUN apt-get update && apt-get install -y --no-install-recommends \
         haproxy \
         python3 \
         python3-pip \
         python3-venv \
         tini \
+        gosu \
         procps \
         curl \
         net-tools \
@@ -70,6 +71,10 @@ COPY proxy_stack.py /opt/proxy-stack/
 COPY lib/ /opt/proxy-stack/lib/
 COPY config.yml /opt/proxy-stack/
 
+# Entrypoint-скрипт
+COPY deploy/docker/entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+
 WORKDIR /opt/proxy-stack
 
 # Создание непривилегированного пользователя (Ubuntu-style)
@@ -82,19 +87,17 @@ RUN getent group proxy >/dev/null || groupadd --system proxy \
 EXPOSE 3128 1080 9100 8404
 
 # Health check
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -sf http://127.0.0.1:9100/health \
         | /opt/proxy-stack/venv/bin/python3 -c \
           "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d['status']=='healthy' else 1)" \
         || exit 1
 
-# Entrypoint через tini для правильной обработки сигналов (PID 1)
-ENTRYPOINT ["tini", "--"]
-
-# Запуск от непривилегированного пользователя
-USER proxy
-
 # PATH: venv Python первый в очереди
 ENV PATH="/opt/proxy-stack/venv/bin:${PATH}"
 
-CMD ["python3", "/opt/proxy-stack/proxy_stack.py", "start", "-c", "/opt/proxy-stack/config.yml"]
+# Entrypoint через tini (PID 1) → entrypoint.sh (фикс прав) → оркестратор
+ENTRYPOINT ["tini", "--", "/entrypoint.sh"]
+
+# По умолчанию: start в foreground-режиме (процесс не завершается)
+CMD ["start", "-c", "/opt/proxy-stack/config.yml", "--foreground"]

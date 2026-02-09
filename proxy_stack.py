@@ -308,6 +308,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Не сбрасывать привилегии (для отладки)",
     )
+    parser.add_argument(
+        "--foreground",
+        action="store_true",
+        help="Не уходить в фон — держать процесс живым (для Docker/контейнеров)",
+    )
     return parser
 
 
@@ -349,7 +354,27 @@ def main() -> int:
     if args.action in ("start", "restart"):
         orch.setup_signals()
 
-    return actions[args.action]()
+    result = actions[args.action]()
+
+    # Foreground-режим: после успешного старта держим процесс живым
+    # (необходимо для Docker, где PID 1 не должен завершаться)
+    if args.foreground and args.action in ("start", "restart") and result == 0:
+        logger.info("Foreground-режим: процесс остаётся активным (Ctrl+C / SIGTERM для остановки)")
+        try:
+            while True:
+                time.sleep(5)
+                # Периодическая проверка: если все дети умерли — выходим
+                health = orch.health_checker.get_health_summary()
+                if health["healthy_backends"] == 0 and health["total_backends"] > 0:
+                    logger.error("Все бэкенды недоступны, завершаем...")
+                    orch.stop()
+                    return 1
+        except (KeyboardInterrupt, SystemExit):
+            logger.info("Завершение foreground-режима...")
+            orch.stop()
+            return 0
+
+    return result
 
 
 if __name__ == "__main__":
