@@ -168,8 +168,8 @@ class ProxyStackOrchestrator:
         logger.info("Proxy Stack запущен успешно!")
         logger.info("  HTTP  прокси: %s:%d", self.config.network.bind_address, self.config.haproxy.frontends["http"]["bind_port"])
         logger.info("  SOCKS прокси: %s:%d", self.config.network.bind_address, self.config.haproxy.frontends["socks"]["bind_port"])
-        if self.config.haproxy.stats.get("enabled"):
-            logger.info("  HAProxy stats: http://%s%s", self.config.haproxy.stats["bind"], self.config.haproxy.stats["uri"])
+        if self.config.haproxy.stats.enabled:
+            logger.info("  HAProxy stats: http://%s%s", self.config.haproxy.stats.bind, self.config.haproxy.stats.uri)
         if self.config.monitoring.enabled:
             logger.info("  Мониторинг: http://%s:%d%s", self.config.monitoring.bind, self.config.monitoring.port, self.config.monitoring.metrics_path)
         logger.info("=" * 60)
